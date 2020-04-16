@@ -31,6 +31,8 @@
     <IISExpressAnonymousAuthentication />
     <IISExpressWindowsAuthentication />
     <IISExpressUseClassicPipelineMode />
+    <Use64BitIISExpress />
+    <UseGlobalApplicationHostFile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
@@ -122,7 +124,6 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="WsdlNamespaceSample.svc" />
-    <Content Include="SoapHeadersSample.svc" />
     <Content Include="WsdlSample.svc" />
     <Content Include="Web.config">
       <SubType>Designer</SubType>
@@ -136,10 +137,6 @@
       <DependentUpon>WsdlNamespaceSample.svc</DependentUpon>
     </Compile>
     <Compile Include="IWsdlNamespaceSample.cs" />
-    <Compile Include="ISoapHeadersSample.cs" />
-    <Compile Include="SoapHeadersSample.svc.cs">
-      <DependentUpon>SoapHeadersSample.svc</DependentUpon>
-    </Compile>
     <Compile Include="WsdlSample.svc.cs">
       <DependentUpon>WsdlSample.svc</DependentUpon>
     </Compile>
