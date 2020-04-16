@@ -174,12 +174,12 @@ namespace WCFExtrasPlus.Wsdl.Documentation
                 }
             }
 
-            GenerateDocumentation_ForParameters(exporter);
+            GenerateDocumentation_ForParameters(exporter, true);
 
             XmlCommentsUtils.ClearCache();
         }
 
-        private static void GenerateDocumentation_ForParameters(WsdlExporter exporter)
+        private static void GenerateDocumentation_ForParameters(WsdlExporter exporter, bool modifyOperationDocumentation)
         {
             foreach (var document in exporter.GeneratedWsdlDocuments)
             {
@@ -211,6 +211,20 @@ namespace WCFExtrasPlus.Wsdl.Documentation
                                 if (returnNodes.Count > 0)
                                 {
                                     parameterDocumentationMap.Add("returns", returnNodes[0].InnerText);
+                                }
+
+                                // TODO: Support for <remarks>, <seealso> tags needed. 
+                                // Right now deletes all tags and leaves only contents of <summary>
+                                if (modifyOperationDocumentation)
+                                {
+                                    var summary = "";
+                                    var summaryNodes = xmlDoc.SelectNodes("root/summary");
+                                    if (summaryNodes.Count > 0)
+                                    {
+                                        summary = summaryNodes[0].InnerText;
+                                    }
+
+                                    operation.Documentation = summary;
                                 }
 
                                 GenerateDocumentation_ForInputParameters(exporter, service, operation, parameterDocumentationMap);
