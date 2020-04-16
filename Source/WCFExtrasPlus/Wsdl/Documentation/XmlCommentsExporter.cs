@@ -7,6 +7,7 @@ using System.Reflection;
 using System.Runtime.Serialization;
 using System.Xml.Schema;
 using WCFExtrasPlus.Utils;
+using System.Linq;
 
 namespace WCFExtrasPlus.Wsdl.Documentation
 {
@@ -36,6 +37,7 @@ namespace WCFExtrasPlus.Wsdl.Documentation
         private static void ConvertObjectAnnotation(XmlSchemaObject schemaObj)
         {
             XmlSchemaAnnotated annObj = schemaObj as XmlSchemaAnnotated;
+
             if (annObj != null && annObj.Annotation != null)
             {
                 XmlSchemaDocumentation comment = null;
@@ -171,7 +173,160 @@ namespace WCFExtrasPlus.Wsdl.Documentation
                     ConvertObjectAnnotation(schemaObj);
                 }
             }
+
+            GenerateDocumentation_ForParameters(exporter);
+
             XmlCommentsUtils.ClearCache();
+        }
+
+        private static void GenerateDocumentation_ForParameters(WsdlExporter exporter)
+        {
+            foreach (var document in exporter.GeneratedWsdlDocuments)
+            {
+                var service = document as System.Web.Services.Description.ServiceDescription;
+                if (service != null)
+                {
+                    foreach (var portTypeObject in service.PortTypes)
+                    {
+                        var portType = (PortType)portTypeObject;
+                        foreach (var operationObject in portType.Operations)
+                        {
+                            var operation = (Operation)operationObject;
+
+                            if (operation.Documentation != null)
+                            {
+                                var parameterDocumentationMap = new Dictionary<string, string>();
+
+                                XmlDocument xmlDoc = new XmlDocument();
+                                xmlDoc.LoadXml("<root>" + operation.Documentation + "</root>");
+
+                                foreach (XmlNode paramNode in xmlDoc.SelectNodes("root/param"))
+                                {
+                                    var paramName = paramNode.Attributes["name"].Value;
+                                    var paramDescription = paramNode.InnerText;
+                                    parameterDocumentationMap.Add(paramName, paramDescription);
+                                }
+
+                                var returnNodes = xmlDoc.SelectNodes("root/returns");
+                                if (returnNodes.Count > 0)
+                                {
+                                    parameterDocumentationMap.Add("returns", returnNodes[0].InnerText);
+                                }
+
+                                GenerateDocumentation_ForInputParameters(exporter, service, operation, parameterDocumentationMap);
+                                GenerateDocumentation_ForOutputParameter(exporter, service, operation, parameterDocumentationMap);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        private static void GenerateDocumentation_ForInputParameters(
+            WsdlExporter exporter,
+            System.Web.Services.Description.ServiceDescription service,
+            Operation operation,
+            Dictionary<string, string> parameterDocumentationMap)
+        {
+            var inputMsgName = operation.Messages.Input.Message.Name;
+
+            var message = service.Messages
+                .Cast<Message>()
+                .FirstOrDefault(m => m.Name == inputMsgName);
+
+            if (message.Parts.Count > 0)
+            {
+                var part = message.Parts[0];
+                var elemName = part.Element?.Name;
+                var elemNamespace = part.Element?.Namespace;
+
+                var schema = exporter.GeneratedXmlSchemas
+                    .Schemas()
+                    .Cast<XmlSchema>()
+                    .FirstOrDefault(s => s.TargetNamespace == elemNamespace);
+
+                if (schema != null)
+                {
+                    var element = schema.Elements
+                        .Values
+                        .Cast<XmlSchemaElement>()
+                        .FirstOrDefault(e => e.Name == elemName);
+
+                    if (element != null)
+                    {
+                        foreach (var parameter in GetOperationParameter(element))
+                        {
+                            string documentation;
+                            if (parameterDocumentationMap.TryGetValue(parameter.Name, out documentation))
+                            {
+                                parameter.Annotation = new XmlSchemaAnnotation();
+                                parameter.Annotation.Items.Add(CreateDocumentationItem(documentation));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        private static void GenerateDocumentation_ForOutputParameter(
+            WsdlExporter exporter,
+            System.Web.Services.Description.ServiceDescription service,
+            Operation operation,
+            Dictionary<string, string> parameterDocumentationMap)
+        {
+            var outputMsgName = operation.Messages.Output.Message.Name;
+
+            var message = service.Messages
+                .Cast<Message>()
+                .FirstOrDefault(m => m.Name == outputMsgName);
+
+            if (message.Parts.Count > 0)
+            {
+                var part = message.Parts[0];
+                var elemName = part.Element?.Name;
+                var elemNamespace = part.Element?.Namespace;
+
+                var schema = exporter.GeneratedXmlSchemas
+                    .Schemas()
+                    .Cast<XmlSchema>()
+                    .FirstOrDefault(s => s.TargetNamespace == elemNamespace);
+
+                if (schema != null)
+                {
+                    var element = schema.Elements
+                        .Values
+                        .Cast<XmlSchemaElement>()
+                        .FirstOrDefault(e => e.Name == elemName);
+
+                    if (element != null)
+                    {
+                        var returnParameter = GetOperationParameter(element).FirstOrDefault();
+
+                        if (returnParameter != null)
+                        {
+                            returnParameter.Annotation = new XmlSchemaAnnotation();
+                            returnParameter.Annotation.Items.Add(CreateDocumentationItem(parameterDocumentationMap["returns"]));
+                        }
+                    }
+                }
+            }
+        }
+
+        private static IEnumerable<XmlSchemaElement> GetOperationParameter(XmlSchemaElement compositeElement)
+        {
+            var complexType = compositeElement.ElementSchemaType as XmlSchemaComplexType;
+            if (complexType != null)
+            {
+                var contentTypeParticle = complexType.ContentTypeParticle as XmlSchemaSequence;
+                if (contentTypeParticle != null)
+                {
+                    foreach (var item in contentTypeParticle.Items)
+                    {
+                        var elemItem = item as XmlSchemaElement;
+                        yield return elemItem;
+                    }
+                }
+            }
         }
 
         internal static void ExportContract(WsdlExporter exporter, WsdlContractConversionContext context, XmlCommentFormat format)
@@ -191,6 +346,7 @@ namespace WCFExtrasPlus.Wsdl.Documentation
             foreach (Operation op in context.WsdlPortType.Operations)
             {
                 OperationDescription opDescription = context.GetOperationDescription(op);
+
                 MemberInfo mi = opDescription.SyncMethod;
                 if (mi == null)
                     mi = opDescription.BeginMethod;
