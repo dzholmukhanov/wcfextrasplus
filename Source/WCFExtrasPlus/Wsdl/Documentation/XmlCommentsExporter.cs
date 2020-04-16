@@ -315,11 +315,12 @@ namespace WCFExtrasPlus.Wsdl.Documentation
                     if (element != null)
                     {
                         var returnParameter = GetOperationParameter(element).FirstOrDefault();
+                        string documentation;
 
-                        if (returnParameter != null)
+                        if (returnParameter != null && parameterDocumentationMap.TryGetValue("returns", out documentation))
                         {
                             returnParameter.Annotation = new XmlSchemaAnnotation();
-                            returnParameter.Annotation.Items.Add(CreateDocumentationItem(parameterDocumentationMap["returns"]));
+                            returnParameter.Annotation.Items.Add(CreateDocumentationItem(documentation));
                         }
                     }
                 }
