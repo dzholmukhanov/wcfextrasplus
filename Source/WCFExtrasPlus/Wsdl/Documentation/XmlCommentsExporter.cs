@@ -203,14 +203,14 @@ namespace WCFExtrasPlus.Wsdl.Documentation
                                 foreach (XmlNode paramNode in xmlDoc.SelectNodes("root/param"))
                                 {
                                     var paramName = paramNode.Attributes["name"].Value;
-                                    var paramDescription = paramNode.InnerText;
+                                    var paramDescription = paramNode.InnerXml;
                                     parameterDocumentationMap.Add(paramName, paramDescription);
                                 }
 
                                 var returnNodes = xmlDoc.SelectNodes("root/returns");
                                 if (returnNodes.Count > 0)
                                 {
-                                    parameterDocumentationMap.Add("returns", returnNodes[0].InnerText);
+                                    parameterDocumentationMap.Add("returns", returnNodes[0].InnerXml);
                                 }
 
                                 // TODO: Support for <remarks>, <seealso> tags needed. 
@@ -221,7 +221,7 @@ namespace WCFExtrasPlus.Wsdl.Documentation
                                     var summaryNodes = xmlDoc.SelectNodes("root/summary");
                                     if (summaryNodes.Count > 0)
                                     {
-                                        summary = summaryNodes[0].InnerText;
+                                        summary = summaryNodes[0].InnerXml;
                                     }
 
                                     operation.Documentation = summary;
